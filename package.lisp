@@ -1,5 +1,14 @@
 ;;;; package.lisp
 
 (defpackage #:monads
-  (:use #:cl))
+  (:use #:cl)
+  (:export #:>>=
+           #:>>
+           #:ret
+           #:mdo
+           #:mbind
+           #:mseq
+           #:mreturn
+           #:mfail
+           #:test))
 

@@ -16,6 +16,19 @@
 (defmacro ret (<i> x)
   `(mreturn ,<i> ,x))
 
+(defmacro mdo (<i> actions final)
+  (assert (listp actions))
+  (if actions
+    (let* ((action (first actions))
+           (l (length action)))
+      (assert (member l '(1 2)))
+      (if (eql l 2)
+        (let ((bind-label (first action))
+              (bind-action (second action)))
+          (assert (symbolp bind-label))
+          `(>>= ,<i> ,bind-action (lambda (,bind-label) (mdo ,<i> ,(rest actions) ,final))))
+        `(>> ,<i> ,action (mdo ,<i> ,(rest actions) ,final))))
+    `(ret ,<i> ,final)))
 
 ;; generic method for Monad implementors
 
@@ -45,7 +58,6 @@
 (defmethod mfail ((<i> (eql <list>)) x) '())
 
 
-
 (defmacro is (expected test)
   `(let ((result ,test)
          (expected ,expected))
@@ -60,11 +72,17 @@
       (>>= <list> '(1 2 3) (lambda (x) (ret <list> (+ 1 x)))))
   (is (list nil nil nil)
       (>> <list> '(1 2 3) (ret <list> (format t "foo"))))
-  (is '((1 A) (1 B) (1 C) (2 A) (2 B) (2 C) (3 A) (3 B) (3 C))
+  (is '((1 a) (1 b) (1 c) (2 a) (2 b) (2 c) (3 a) (3 b) (3 c))
       (>>= <list> '(1 2 3) 
            (lambda (x)
              (>>= <list> '(a b c)
                   (lambda (y)
                     (ret <list> (list x y)))))))
+  (is '((1 a) (1 b) (1 c) (2 a) (2 b) (2 c) (3 a) (3 b) (3 c))
+      (mdo <list>
+        ((x '(1 2 3))
+         (y '(a b c)))
+        (list x y)))
   )
+
 
