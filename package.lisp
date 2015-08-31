@@ -4,11 +4,11 @@
   (:use #:cl)
   (:export #:>>=
            #:>>
-           #:ret
+           #:unit
            #:mdo
            #:mbind
            #:mseq
-           #:mreturn
+           #:munit
            #:mfail
            #:test))
 

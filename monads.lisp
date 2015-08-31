@@ -13,8 +13,8 @@
 (defmacro >> (<i> m k) 
   `(mseq ,<i> ,m (freeze ,k)))
 
-(defmacro ret (<i> x)
-  `(mreturn ,<i> ,x))
+(defmacro unit (<i> x)
+  `(munit ,<i> ,x))
 
 (defmacro mdo (<i> actions final)
   (assert (listp actions))
@@ -28,7 +28,7 @@
           (assert (symbolp bind-label))
           `(>>= ,<i> ,bind-action (lambda (,bind-label) (mdo ,<i> ,(rest actions) ,final))))
         `(>> ,<i> ,action (mdo ,<i> ,(rest actions) ,final))))
-    `(ret ,<i> ,final)))
+    `(unit ,<i> ,final)))
 
 ;; generic method for Monad implementors
 
@@ -36,10 +36,16 @@
 
 (defgeneric mseq (<i> m fk))
 
-(defgeneric mreturn (<i> v))
+(defgeneric munit (<i> v))
 
 (defgeneric mfail (<i> x))
 
+;; default implementations
+
+(defmethod mseq (<i> m fk)
+  (mbind <i> m (lambda (x)
+                 (declare (ignore x))
+                 (thaw fk))))
 
 ;; <list> monad implementation
 
@@ -49,14 +55,11 @@
   (reduce #'(lambda (ma a)
               (append ma (funcall k a))) m :initial-value '()))
 
-(defmethod mseq ((<i> (eql <list>)) m fk)
-  (reduce #'(lambda (ma a)
-              (append ma (thaw fk))) m :initial-value '()))
-
-(defmethod mreturn ((<i> (eql <list>)) x) (list x))
+(defmethod munit ((<i> (eql <list>)) x) (list x))
 
 (defmethod mfail ((<i> (eql <list>)) x) '())
 
+;; Some tests.
 
 (defmacro is (expected test)
   `(let ((result ,test)
@@ -69,15 +72,15 @@
 
 (defun test ()
   (is (list 2 3 4)
-      (>>= <list> '(1 2 3) (lambda (x) (ret <list> (+ 1 x)))))
+      (>>= <list> '(1 2 3) (lambda (x) (unit <list> (+ 1 x)))))
   (is (list nil nil nil)
-      (>> <list> '(1 2 3) (ret <list> (format t "foo"))))
+      (>> <list> '(1 2 3) (unit <list> (format t "foo"))))
   (is '((1 a) (1 b) (1 c) (2 a) (2 b) (2 c) (3 a) (3 b) (3 c))
       (>>= <list> '(1 2 3) 
            (lambda (x)
              (>>= <list> '(a b c)
                   (lambda (y)
-                    (ret <list> (list x y)))))))
+                    (unit <list> (list x y)))))))
   (is '((1 a) (1 b) (1 c) (2 a) (2 b) (2 c) (3 a) (3 b) (3 c))
       (mdo <list>
         ((x '(1 2 3))
