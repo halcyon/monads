@@ -27,7 +27,7 @@
               (bind-action (second action)))
           (assert (symbolp bind-label))
           `(>>= ,<i> ,bind-action (lambda (,bind-label) (mdo ,<i> ,(rest actions) ,final))))
-        `(>> ,<i> ,action (mdo ,<i> ,(rest actions) ,final))))
+        `(>> ,<i> ,(first action) (mdo ,<i> ,(rest actions) ,final))))
     `(unit ,<i> ,final)))
 
 ;; generic method for Monad implementors
@@ -59,6 +59,42 @@
 
 (defmethod mfail ((<i> (eql <list>)) x) '())
 
+;; <state>
+
+(defvar <state> '<state>)
+
+;; m is initial state, k is next action
+(defmethod mbind ((<i> (eql <state>)) m k)
+  (lambda (state)
+    (let* ((result (funcall m state))
+           (r (car result))
+           (new-state (cdr result)))
+      (funcall (funcall k r) new-state))))
+
+(defmethod munit ((<i> (eql <state>)) x)
+  (lambda (state) (cons x state)))
+
+(defun get-state (state) (cons state state))
+(defvar get-state #'get-state)
+
+(defun get-state-f (fun)
+  (lambda (state) (cons (funcall fun state) state)))
+
+(defun put-state (new-state)
+  (lambda (old-state)
+    (declare (ignore old-state))
+    (cons nil new-state)))
+
+(defun run-state (state-machine initial-state)
+  (funcall state-machine initial-state))
+
+(defun exec-state (state-machine initial-state)
+  (cdr (run-state state-machine initial-state)))
+
+(defun eval-state (state-machine initial-state)
+  (car (run-state state-machine initial-state)))
+  
+
 ;; Some tests.
 
 (defmacro is (expected test)
@@ -71,6 +107,7 @@
                (quote ,test) result expected))))
 
 (defun test ()
+  ;; <list> tests
   (is (list 2 3 4)
       (>>= <list> '(1 2 3) (lambda (x) (unit <list> (+ 1 x)))))
   (is (list nil nil nil)
@@ -86,6 +123,26 @@
         ((x '(1 2 3))
          (y '(a b c)))
         (list x y)))
+  ;; <state> tests
+  (is (cons 'value 'state)
+      (run-state (mdo <state> () 'value) 'state))
+  (is (cons 'state 'state)
+      (run-state (mdo <state> ((s get-state)) s) 'state))
+  (is (cons 'value 'foo)
+      (run-state (mdo <state> (((put-state 'foo))) 'value) 'state))
+  (is (cons 2 1)
+      (run-state (mdo <state> ((s (get-state-f #'1+))) s) 1))
+  (is (cons 1 2)
+      (let ((postincrement (mdo <state> ((x get-state)
+                                         ((put-state (1+ x))))
+                                x)))
+        (run-state postincrement 1)))
+  (is (cons 0 0)
+      (let ((predecrement (mdo <state> ((x get-state)
+                                        ((put-state (1- x)))
+                                        (y get-state))
+                               y)))
+        (run-state predecrement 1)))
   )
 
 

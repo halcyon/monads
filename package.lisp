@@ -10,5 +10,17 @@
            #:mseq
            #:munit
            #:mfail
-           #:test))
+
+           #:test
+
+           #:<list>
+        
+           #:<state>
+           #:get-state
+           #:get-state-f
+           #:put-state
+           #:run-state
+           #:exec-state
+           #:eval-state
+           ))
 
